@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: net-oracle-sa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: net-oracle-cluster-role
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: net-oracle-binding
+subjects:
+  - kind: ServiceAccount
+    name: net-oracle-sa
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: net-oracle-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: net-oracle
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: net-oracle
+  template:
+    metadata:
+      labels:
+        name: net-oracle
+    spec:
+      hostNetwork: true       # Crucial para ver interfaces de red del nodo
+      hostPID: true
+      serviceAccountName: net-oracle-sa # Debes crear un RBAC con permisos de "get/list/watch" pods
+      containers:
+      - name: sniffer
+        image: tu-registro/net-oracle:v1
+        securityContext:
+          privileged: true    # Necesario para abrir sockets crudos (AF_PACKET)
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
